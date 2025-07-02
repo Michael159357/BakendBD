@@ -40,3 +40,13 @@ def consulta():
 @app.route("/")
 def inicio():
     return "API lista para recibir consultas"
+
+@app.route("/probar_conexion", methods=["GET"])
+def probar_conexion():
+    try:
+        conn = get_connection()
+        conn.close()
+        return jsonify({"mensaje": "Conexión exitosa con la base de datos"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
