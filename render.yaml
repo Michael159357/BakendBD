@@ -5,15 +5,4 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
-    envVars:
-      - key: DB_NAME
-        value: postgres        
-      - key: DB_USER
-        value: postgres        
-      - key: DB_PASS
-        value:    
-      - key: DB_HOST
-        value: 
-      - key: DB_PORT
-        value: "5432"
 
