@@ -8,6 +8,11 @@ import os
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Permitir CORS para todos los orígenes
 
+import re
+
+if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", schema):
+    return {"error": "Nombre de esquema inválido"}
+
 
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
@@ -24,21 +29,37 @@ def get_connection():
         port=DB_PORT
     )
 
-@app.route("/consulta", methods=["POST"])
-def consulta():
-    query = request.json.get("query")
+@app.post("/consulta")
+def consultar_bd(request: Request):
+    body = await request.json()
+    query = body.get("query")
+    schema = body.get("schema", "public")  # por defecto usa public si no se envía
+
     try:
-        conn = get_connection()
-        start = time.time()
-        df = pd.read_sql_query(query, conn)
-        tiempo = round(time.time() - start, 4)
-        conn.close()
-        return jsonify({
-            "data": df.to_dict(orient="records"),
-            "tiempo": tiempo
-        })
+        conn = psycopg2.connect(
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASS,
+            host=DB_HOST,
+            port=DB_PORT
+        )
+        cursor = conn.cursor()
+
+        # Establecer el esquema deseado
+        cursor.execute(f"SET search_path TO {schema};")
+
+        # Ejecutar la consulta del usuario
+        cursor.execute(query)
+        data = cursor.fetchall()
+
+        # Opcional: nombres de columnas
+        columns = [desc[0] for desc in cursor.description]
+        results = [dict(zip(columns, row)) for row in data]
+
+        return {"results": results}
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return {"error": str(e)}
 
 @app.route("/")
 def inicio():
