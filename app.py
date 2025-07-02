@@ -25,25 +25,27 @@ def get_connection():
         port=DB_PORT
     )
 
-# Endpoint para recibir consultas SQL
 @app.route("/consulta", methods=["POST"])
 def consultar_bd():
+    import time  # Añade esto si no está al inicio
     body = request.get_json()
     query = body.get("query")
-    schema = body.get("schema", "public")  # por defecto 'public'
+    schema = body.get("schema", "public")
 
     # Validar el esquema
     if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", schema):
         return jsonify({"error": "Nombre de esquema inválido"}), 400
 
     try:
+        start_time = time.time()
+
         conn = get_connection()
         cursor = conn.cursor()
 
-        # Cambiar esquema
+        # Cambiar el esquema
         cursor.execute(f"SET search_path TO {schema};")
 
-        # Ejecutar consulta
+        # Ejecutar la consulta
         cursor.execute(query)
         data = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description]
@@ -52,10 +54,17 @@ def consultar_bd():
         cursor.close()
         conn.close()
 
-        return jsonify({"results": results})
+        end_time = time.time()
+        tiempo_ejecucion = round(end_time - start_time, 3)
+
+        return jsonify({
+            "data": results,          # ✔ ahora es "data"
+            "tiempo": tiempo_ejecucion  # ✔ y se incluye el tiempo
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
 
 # Página principal
 @app.route("/")
