@@ -2,24 +2,20 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
 import pandas as pd
-import time
 import os
+import re
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Permitir CORS para todos los orígenes
 
-import re
-
-if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", schema):
-    return {"error": "Nombre de esquema inválido"}
-
-
+# Variables de entorno
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT", "5432")
 
+# Función para conectar a la BD
 def get_connection():
     return psycopg2.connect(
         dbname=DB_NAME,
@@ -29,42 +25,44 @@ def get_connection():
         port=DB_PORT
     )
 
-@app.post("/consulta")
-def consultar_bd(request: Request):
-    body = await request.json()
+# Endpoint para recibir consultas SQL
+@app.route("/consulta", methods=["POST"])
+def consultar_bd():
+    body = request.get_json()
     query = body.get("query")
-    schema = body.get("schema", "public")  # por defecto usa public si no se envía
+    schema = body.get("schema", "public")  # por defecto 'public'
+
+    # Validar el esquema
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", schema):
+        return jsonify({"error": "Nombre de esquema inválido"}), 400
 
     try:
-        conn = psycopg2.connect(
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS,
-            host=DB_HOST,
-            port=DB_PORT
-        )
+        conn = get_connection()
         cursor = conn.cursor()
 
-        # Establecer el esquema deseado
+        # Cambiar esquema
         cursor.execute(f"SET search_path TO {schema};")
 
-        # Ejecutar la consulta del usuario
+        # Ejecutar consulta
         cursor.execute(query)
         data = cursor.fetchall()
-
-        # Opcional: nombres de columnas
         columns = [desc[0] for desc in cursor.description]
         results = [dict(zip(columns, row)) for row in data]
 
-        return {"results": results}
+        cursor.close()
+        conn.close()
+
+        return jsonify({"results": results})
 
     except Exception as e:
-        return {"error": str(e)}
+        return jsonify({"error": str(e)}), 400
 
+# Página principal
 @app.route("/")
 def inicio():
     return "API lista para recibir consultas"
 
+# Probar conexión
 @app.route("/probar_conexion", methods=["GET"])
 def probar_conexion():
     try:
@@ -73,4 +71,3 @@ def probar_conexion():
         return jsonify({"mensaje": "Conexión exitosa con la base de datos"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
