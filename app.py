@@ -4,9 +4,10 @@ import psycopg2
 import pandas as pd
 import os
 import re
+import time  
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Permitir CORS para todos los orígenes
+CORS(app, resources={r"/*": {"origins": "*"}})  
 
 # Variables de entorno
 DB_NAME = os.getenv("DB_NAME")
@@ -27,7 +28,7 @@ def get_connection():
 
 @app.route("/consulta", methods=["POST"])
 def consultar_bd():
-    import time  # Añade esto si no está al inicio
+    
     body = request.get_json()
     query = body.get("query")
     schema = body.get("schema", "public")
@@ -58,8 +59,8 @@ def consultar_bd():
         tiempo_ejecucion = round(end_time - start_time, 3)
 
         return jsonify({
-            "data": results,          # ✔ ahora es "data"
-            "tiempo": tiempo_ejecucion  # ✔ y se incluye el tiempo
+            "data": results,         
+            "tiempo": tiempo_ejecucion  
         })
 
     except Exception as e:
